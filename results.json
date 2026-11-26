@@ -1,0 +1,22 @@
+{
+  "capital": 966.98,
+  "days": [
+    "2026-11-25"
+  ],
+  "trades": [
+    {
+      "date": "2026-11-25",
+      "stock": "NOKIA.HE",
+      "buy": 6.57,
+      "sell": 6.424,
+      "profit": -27.02
+    },
+    {
+      "date": "2026-11-25",
+      "stock": "NESTE.HE",
+      "buy": 23.16,
+      "sell": 23.16,
+      "profit": -6.0
+    }
+  ]
+}
