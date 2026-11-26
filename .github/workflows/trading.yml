@@ -1,0 +1,41 @@
+name: TradingBot
+
+on:
+  schedule:
+    - cron: '17 6 * * 1-6'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tradingbot
+  cancel-in-progress: false
+
+jobs:
+  trading:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install packages
+        run: pip install yfinance pandas
+
+      - name: Run TradingBot
+        run: python bot.py
+
+      - name: Save results
+        run: |
+          git config user.name "TradingBot"
+          git config user.email "bot@users.noreply.github.com"
+          if [ -f results.json ]; then
+            git add results.json
+            git diff --cached --quiet || git commit -m "Update trading results"
+            git push
+          fi
