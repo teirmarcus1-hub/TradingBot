@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingBot</title>
+<style>
+body {
+  background: #0b1120;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 18px;
+}
+main {
+  max-width: 650px;
+  margin: auto;
+}
+.card {
+  background: #172033;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+h1 { font-size: 26px; }
+h2 { font-size: 36px; margin: 10px 0; }
+small { color: #a0aec0; }
+.green { color: #4ade80; }
+.red { color: #f87171; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+button {
+  background: #2563eb;
+  color: white;
+  border: 0;
+  padding: 15px;
+  border-radius: 10px;
+  width: 100%;
+  font-size: 16px;
+}
+table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+td, th {
+  padding: 10px 3px;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+svg { width: 100%; height: 150px; }
+progress { width: 100%; }
+</style>
+</head>
+<body>
+<main>
+<h1>TradingBot</h1>
+<p><small>DAYTRADING | SIMULERING</small></p>
+
+<div class="card">
+<small>PORTFÖLJVÄRDE</small>
+<h2 id="capital">Laddar...</h2>
+<div id="profit"></div>
+<svg viewBox="0 0 320 150">
+<polyline id="chart" fill="none"
+stroke="#38bdf8" stroke-width="3"/>
+</svg>
+<small id="updated"></small>
+</div>
+
+<div class="grid">
+<div class="card">
+<small>STARTKAPITAL</small>
+<h3 id="start">-</h3>
+</div>
+<div class="card">
+<small>ANTAL AFFÄRER</small>
+<h3 id="count">-</h3>
+</div>
+<div class="card">
+<small>COURTAGE</small>
+<h3 id="fees">-</h3>
+</div>
+<div class="card">
+<small>VINSTANDEL</small>
+<h3 id="wins">-</h3>
+</div>
+</div>
+
+<div class="card">
+<small>TESTPERIOD</small>
+<h3 id="days">-</h3>
+<progress id="progress" value="0" max="30"></progress>
+</div>
+
+<div class="card">
+<h3>Handelshistorik</h3>
+<table>
+<thead>
+<tr>
+<th>Datum</th>
+<th>Aktie</th>
+<th>Resultat</th>
+</tr>
+</thead>
+<tbody id="trades"></tbody>
+</table>
+</div>
+
+<button onclick="load()">Uppdatera resultat</button>
+<p id="status"></p>
+<p><small>Virtuella pengar. Ingen riktig aktiehandel.</small></p>
+</main>
+
+<script>
+const el = id => document.getElementById(id);
+const euro = n => n.toLocaleString("sv-FI", {
+  style: "currency", currency: "EUR"
+});
+
+async function load() {
+  el("status").textContent = "Hämtar resultat...";
+  try {
+    const base = "https://raw.githubusercontent.com/teirmarcus1-hub/TradingBot/main/";
+    const read = async name => {
+      const r = await fetch(base + name, {cache:"no-store"});
+      if (!r.ok) throw new Error("Data saknas");
+      return r.json();
+    };
+    const [d,c] = await Promise.all([
+      read("results.json"), read("config.json")
+    ]);
+    const start = c.initial_capital;
+    const profit = d.capital - start;
+    const pct = profit / start * 100;
+    el("capital").textContent = euro(d.capital);
+    el("profit").textContent =
+      euro(profit) + " (" + pct.toFixed(2) + "%)";
+    el("profit").className = profit >= 0 ? "green" : "red";
+    el("start").textContent = euro(start);
+    el("count").textContent = d.trades.length;
+    el("fees").textContent =
+      euro(d.trades.length * c.commission_eur * 2);
+    el("wins").textContent = d.trades.length ?
+      (100 * d.trades.filter(t => t.profit > 0).length /
+      d.trades.length).toFixed(0) + "%" : "-";
+    el("days").textContent =
+      d.days.length + " av " + c.test_days + " dagar";
+    el("progress").max = c.test_days;
+    el("progress").value = d.days.length;
+    el("updated").textContent =
+      "Senaste testdag: " + (d.days.at(-1) || "-");
+
+    let values = [start];
+    for (const day of d.days) {
+      const p = d.trades.filter(t => t.date === day)
+        .reduce((sum,t) => sum + t.profit, 0);
+      values.push(values.at(-1) + p);
+    }
+    const min = Math.min(...values) - 5;
+    const max = Math.max(...values) + 5;
+    el("chart").setAttribute("points",
+      values.map((v,i) =>
+        (10 + i * 300 / Math.max(1,values.length-1)) +
+        "," + (140 - (v-min)/(max-min)*130)
+      ).join(" ")
+    );
+
+    el("trades").replaceChildren();
+    for (const t of [...d.trades].reverse()) {
+      const row = el("trades").insertRow();
+      row.insertCell().textContent = t.date;
+      row.insertCell().textContent = t.stock;
+      const cell = row.insertCell();
+      cell.textContent = euro(t.profit);
+      cell.className = t.profit >= 0 ? "green" : "red";
+    }
+    el("status").textContent = "Resultat uppdaterat";
+  } catch (e) {
+    el("status").textContent =
+      "Kunde inte hämta resultat. Försök igen.";
+  }
+}
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
